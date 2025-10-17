@@ -1,0 +1,39 @@
+{
+  "phrases": [
+    {
+      "english": "Hello",
+      "local": "Namaste",
+      "localScript": "नमस्ते",
+      "language": "Hindi",
+      "pronunciation": "nuh-muh-stay"
+    },
+    {
+      "english": "Thank you",
+      "local": "Dhanyavaad",
+      "localScript": "धन्यवाद",
+      "language": "Hindi",
+      "pronunciation": "dhun-yuh-vaad"
+    },
+    {
+      "english": "How are you?",
+      "local": "Aap kaise hain?",
+      "localScript": "आप कैसे हैं?",
+      "language": "Hindi",
+      "pronunciation": "aap kai-se hain"
+    },
+    {
+      "english": "Welcome",
+      "local": "Swagat hai",
+      "localScript": "स्वागत है",
+      "language": "Hindi",
+      "pronunciation": "swa-gut hai"
+    },
+    {
+      "english": "What is your name?",
+      "local": "Aapka naam kya hai?",
+      "localScript": "आपका नाम क्या है?",
+      "language": "Hindi",
+      "pronunciation": "aap-ka naam kya hai"
+    }
+  ]
+}

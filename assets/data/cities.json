@@ -1,0 +1,31 @@
+{
+  "cities": [
+    {
+      "name": "Bhubaneswar",
+      "state": "Odisha",
+      "culturalInfo": "Known as the Temple City of India, Bhubaneswar features magnificent Kalinga architecture, ancient temples, and rich cultural heritage.",
+      "cuisine": "Pakhal Bhat, Dalma, Chhena Poda",
+      "festivals": "Ratha Yatra, Durga Puja, Makar Sankranti",
+      "language": "Odia",
+      "history": "Ancient capital of Kalinga empire, known for the famous Kalinga War that transformed Emperor Ashoka."
+    },
+    {
+      "name": "Jaipur",
+      "state": "Rajasthan",
+      "culturalInfo": "The Pink City, famous for its palaces, forts, and vibrant markets showcasing Rajasthani culture and handicrafts.",
+      "cuisine": "Dal Baati Churma, Gatte ki Sabzi, Laal Maas",
+      "festivals": "Diwali, Holi, Gangaur, Teej",
+      "language": "Hindi, Rajasthani",
+      "history": "Founded in 1727 by Maharaja Sawai Jai Singh II, planned according to Vastu Shastra."
+    },
+    {
+      "name": "Mumbai",
+      "state": "Maharashtra",
+      "culturalInfo": "India's financial capital, blending traditional Marathi culture with modern cosmopolitan lifestyle and Bollywood glamour.",
+      "cuisine": "Vada Pav, Pav Bhaji, Bombay Duck, Misal Pav",
+      "festivals": "Ganesh Chaturthi, Diwali, Gudi Padwa",
+      "language": "Marathi, Hindi, English",
+      "history": "Group of seven islands transformed into a major port city under British colonial rule."
+    }
+  ]
+}
