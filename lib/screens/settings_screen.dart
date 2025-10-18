@@ -56,7 +56,7 @@ class SettingsScreen extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.auto_awesome),
               title: const Text('AI Powered'),
-              subtitle: const Text('Gemini AI Integration Active'),
+              subtitle: const Text('Mistral 7B via OpenRouter'),
             ),
           ],
         ),

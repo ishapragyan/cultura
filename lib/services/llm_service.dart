@@ -3,8 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class LlmService with ChangeNotifier {
-  // Replace with your actual Gemini API key
-  final String _geminiApiKey = 'AIzaSyCWhSram4YqXqJdf0K0u6N9Nn_64qbgtY0'; // Your actual API key here
+  // OpenRouter configuration for Mistral 7B (free tier)
+  final String _openRouterApiKey = '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'; // Get from https://openrouter.ai/
+  final String _model = 'mistralai/mistral-7b-instruct:free';
   bool _isLoading = false;
   String _error = '';
 
@@ -24,27 +25,30 @@ Generate a short 150-word folk-style story or legend written in an engaging narr
 ''';
 
       final response = await http.post(
-        Uri.parse('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=$_geminiApiKey'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_openRouterApiKey',
+          'HTTP-Referer': 'https://cultura-app.com', // Required by OpenRouter
+          'X-Title': 'Cultura Cultural Explorer', // Required by OpenRouter
+        },
         body: json.encode({
-          'contents': [
+          'model': _model,
+          'messages': [
             {
-              'parts': [
-                {'text': prompt}
-              ]
+              'role': 'user',
+              'content': prompt,
             }
           ],
-          'generationConfig': {
-            'temperature': 0.7,
-            'maxOutputTokens': 500,
-          }
+          'max_tokens': 500,
+          'temperature': 0.7,
         }),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final story = data['candidates'][0]['content']['parts'][0]['text'];
-        return story;
+        final story = data['choices'][0]['message']['content'];
+        return _cleanResponse(story);
       } else {
         final errorData = json.decode(response.body);
         _error = 'Failed to generate story: ${errorData['error']['message'] ?? response.statusCode}';
@@ -74,27 +78,30 @@ Create a beautiful, reflective summary of this cultural exploration in 100 words
 ''';
 
       final response = await http.post(
-        Uri.parse('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=$_geminiApiKey'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_openRouterApiKey',
+          'HTTP-Referer': 'https://cultura-app.com',
+          'X-Title': 'Cultura Cultural Explorer',
+        },
         body: json.encode({
-          'contents': [
+          'model': _model,
+          'messages': [
             {
-              'parts': [
-                {'text': prompt}
-              ]
+              'role': 'user',
+              'content': prompt,
             }
           ],
-          'generationConfig': {
-            'temperature': 0.7,
-            'maxOutputTokens': 300,
-          }
+          'max_tokens': 300,
+          'temperature': 0.7,
         }),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final summary = data['candidates'][0]['content']['parts'][0]['text'];
-        return summary;
+        final summary = data['choices'][0]['message']['content'];
+        return _cleanResponse(summary);
       } else {
         final errorData = json.decode(response.body);
         _error = 'Failed to generate summary: ${errorData['error']['message'] ?? response.statusCode}';
@@ -109,6 +116,9 @@ Create a beautiful, reflective summary of this cultural exploration in 100 words
     }
   }
 
-// Remove the API key settings since it's hardcoded now
-// void updateApiKey(String newKey) {}
+  // Helper method to clean the response
+  String _cleanResponse(String response) {
+    // Remove any leading/trailing whitespace and quotes
+    return response.trim().replaceAll(RegExp(r'^"|"$'), '');
+  }
 }
