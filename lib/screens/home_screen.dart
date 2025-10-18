@@ -270,15 +270,27 @@ class _HomeScreenState extends State<HomeScreen> {
               () => Navigator.pushNamed(context, '/phrases'),
         ),
         _buildActionCard(
+          Icons.restaurant,
+          'Local Cuisine',
+          Colors.orange,
+              () => Navigator.pushNamed(context, '/cuisine'),
+        ),
+        _buildActionCard(
+          Icons.celebration,
+          'Festivals',
+          Colors.green,
+              () => Navigator.pushNamed(context, '/festivals'),
+        ),
+        _buildActionCard(
           Icons.history,
           'My Journey',
-          Colors.green,
+          Colors.teal,
               () => Navigator.pushNamed(context, '/history'),
         ),
         _buildActionCard(
           Icons.settings,
           'Settings',
-          Colors.orange,
+          Colors.grey,
               () => Navigator.pushNamed(context, '/settings'),
         ),
       ],
@@ -337,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: (index) {
         switch (index) {
           case 0:
-            Navigator.pushNamed(context, '/home');
+          // Already on home, do nothing
             break;
           case 1:
             Navigator.pushNamed(context, '/stories');

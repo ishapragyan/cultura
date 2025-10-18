@@ -46,7 +46,7 @@ class SettingsScreen extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.code),
               title: const Text('Developed with'),
-              subtitle: const Text('Flutter & Google Gemini AI'),
+              subtitle: const Text('Flutter'),
             ),
             ListTile(
               leading: const Icon(Icons.public),
@@ -57,6 +57,17 @@ class SettingsScreen extends StatelessWidget {
               leading: const Icon(Icons.auto_awesome),
               title: const Text('AI Powered'),
               subtitle: const Text('Mistral 7B via OpenRouter'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.cached),
+              title: const Text('Clear AI Cache'),
+              subtitle: const Text('Clear cached stories and summaries'),
+              onTap: () {
+                context.read<LlmService>().clearAllCache();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('AI cache cleared')),
+                );
+              },
             ),
           ],
         ),

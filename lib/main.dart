@@ -1,3 +1,5 @@
+import 'package:cultura/screens/cuisine_screen.dart';
+import 'package:cultura/screens/festivals_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
@@ -53,10 +55,14 @@ class CulturaApp extends StatelessWidget {
         fontFamily: 'Poppins',
       ),
       home: const HomeScreen(),
+      // In main.dart, update the routes:
+      // In main.dart routes section:
       routes: {
         '/home': (context) => const HomeScreen(),
         '/stories': (context) => const StoryScreen(),
         '/phrases': (context) => const PhrasebookScreen(),
+        '/cuisine': (context) => const CuisineScreen(),
+        '/festivals': (context) => const FestivalsScreen(),
         '/history': (context) => const HistoryScreen(),
         '/settings': (context) => const SettingsScreen(),
       },
