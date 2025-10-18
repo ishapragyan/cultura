@@ -6,6 +6,17 @@ plugins {
 }
 
 android {
+/*
+    compileSdkVersion 33
+
+    defaultConfig {
+        applicationId "com.example.cultura"
+        minSdkVersion 21
+        targetSdkVersion 33
+        versionCode 1
+        versionName "1.0.0"
+    }
+*/
     namespace = "com.example.cultura"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"

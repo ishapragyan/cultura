@@ -3,7 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class LlmService with ChangeNotifier {
-  final String _geminiApiKey = 'AIzaSyCWhSram4YqXqJdf0K0u6N9Nn_64qbgtY0'; // User should add their API key
+  // Replace with your actual Gemini API key
+  final String _geminiApiKey = 'AIzaSyCWhSram4YqXqJdf0K0u6N9Nn_64qbgtY0'; // Your actual API key here
   bool _isLoading = false;
   String _error = '';
 
@@ -11,12 +12,6 @@ class LlmService with ChangeNotifier {
   String get error => _error;
 
   Future<String?> generateStory(String city, String culturalInfo) async {
-    if (_geminiApiKey.isEmpty) {
-      _error = 'Please add your Gemini API key in Settings';
-      notifyListeners();
-      return null;
-    }
-
     _isLoading = true;
     _error = '';
     notifyListeners();
@@ -51,7 +46,8 @@ Generate a short 150-word folk-style story or legend written in an engaging narr
         final story = data['candidates'][0]['content']['parts'][0]['text'];
         return story;
       } else {
-        _error = 'Failed to generate story: ${response.statusCode}';
+        final errorData = json.decode(response.body);
+        _error = 'Failed to generate story: ${errorData['error']['message'] ?? response.statusCode}';
         return null;
       }
     } catch (e) {
@@ -64,11 +60,8 @@ Generate a short 150-word folk-style story or legend written in an engaging narr
   }
 
   Future<String?> generateJourneySummary(List<Map<String, dynamic>> visits) async {
-    if (_geminiApiKey.isEmpty) {
-      return 'Add your API key to generate AI summaries';
-    }
-
     _isLoading = true;
+    _error = '';
     notifyListeners();
 
     try {
@@ -90,7 +83,11 @@ Create a beautiful, reflective summary of this cultural exploration in 100 words
                 {'text': prompt}
               ]
             }
-          ]
+          ],
+          'generationConfig': {
+            'temperature': 0.7,
+            'maxOutputTokens': 300,
+          }
         }),
       );
 
@@ -99,19 +96,19 @@ Create a beautiful, reflective summary of this cultural exploration in 100 words
         final summary = data['candidates'][0]['content']['parts'][0]['text'];
         return summary;
       } else {
-        return 'Unable to generate summary. Check your API key.';
+        final errorData = json.decode(response.body);
+        _error = 'Failed to generate summary: ${errorData['error']['message'] ?? response.statusCode}';
+        return null;
       }
     } catch (e) {
-      return 'Error generating summary: $e';
+      _error = 'Error generating summary: $e';
+      return null;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  void updateApiKey(String newKey) {
-    // In a real app, store this securely
-    // _geminiApiKey = newKey;
-    notifyListeners();
-  }
+// Remove the API key settings since it's hardcoded now
+// void updateApiKey(String newKey) {}
 }

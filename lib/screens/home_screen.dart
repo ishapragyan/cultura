@@ -119,19 +119,40 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildError(String error) {
+    final locationService = context.read<LocationService>();
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: Colors.red),
-          const SizedBox(height: 16),
-          Text('Error: $error', textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _initializeApp,
-            child: const Text('Try Again'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.location_off, size: 64, color: Colors.orange),
+            const SizedBox(height: 16),
+            Text(
+              'Location Access Needed',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            if (locationService.permissionDenied) ...[
+              ElevatedButton(
+                onPressed: () => locationService.openAppSettings(),
+                child: const Text('Open App Settings'),
+              ),
+              const SizedBox(height: 8),
+            ],
+            OutlinedButton(
+              onPressed: _initializeApp,
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
       ),
     );
   }

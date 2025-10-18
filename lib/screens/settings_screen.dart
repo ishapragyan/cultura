@@ -8,7 +8,6 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final llmService = context.read<LlmService>();
     final historyService = context.read<HistoryService>();
 
     return Scaffold(
@@ -19,76 +18,10 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildApiSettings(context, llmService),
+          _buildAppInfo(context),
           const SizedBox(height: 20),
           _buildDataManagement(context, historyService),
-          const SizedBox(height: 20),
-          _buildAppInfo(context),
         ],
-      ),
-    );
-  }
-
-  Widget _buildApiSettings(BuildContext context, LlmService llm) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'AI Settings',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Gemini API Key',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              decoration: const InputDecoration(
-                hintText: 'Enter your Gemini API key',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                // In a real app, store this securely
-                // llm.updateApiKey(value);
-              },
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Get your free API key from Google AI Studio',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDataManagement(BuildContext context, HistoryService history) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Data Management',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Clear Visit History'),
-                onPressed: () => _showClearHistoryDialog(context, history),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -119,6 +52,37 @@ class SettingsScreen extends StatelessWidget {
               leading: const Icon(Icons.public),
               title: const Text('Data Sources'),
               subtitle: const Text('Wikipedia, Local Knowledge'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.auto_awesome),
+              title: const Text('AI Powered'),
+              subtitle: const Text('Gemini AI Integration Active'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataManagement(BuildContext context, HistoryService history) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Data Management',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Clear Visit History'),
+                onPressed: () => _showClearHistoryDialog(context, history),
+              ),
             ),
           ],
         ),
