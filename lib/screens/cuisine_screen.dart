@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/location_service.dart';
 import '../services/api_service.dart';
+import '../services/llm_service.dart';
 import '../services/tts_service.dart';
 import '../models/city_info.dart';
 
@@ -13,7 +14,8 @@ class CuisineScreen extends StatefulWidget {
 }
 
 class _CuisineScreenState extends State<CuisineScreen> {
-  CityInfo? _currentCityInfo;
+  String? _cuisineInfo;
+  bool _isGenerating = false;
 
   @override
   void initState() {
@@ -24,25 +26,53 @@ class _CuisineScreenState extends State<CuisineScreen> {
   void _loadCuisineData() async {
     final locationService = context.read<LocationService>();
     final apiService = context.read<ApiService>();
+    final llmService = context.read<LlmService>();
 
-    if (locationService.currentCity != 'Unknown') {
-      final cityInfo = await apiService.getCulturalInfo(
-        locationService.currentCity,
-        locationService.currentState,
-      );
-
-      if (mounted) {
-        setState(() {
-          _currentCityInfo = cityInfo;
-        });
-      }
+    if (locationService.currentCity == 'Unknown') {
+      return;
     }
+
+    setState(() {
+      _isGenerating = true;
+    });
+
+    // First get cultural info for context
+    final culturalInfo = await apiService.getCulturalInfo(
+      locationService.currentCity,
+      locationService.currentState,
+    );
+
+    // Then generate cuisine info using AI
+    final cuisineInfo = await llmService.generateCuisineInfo(
+      locationService.currentCity,
+      locationService.currentState,
+      culturalInfo?.culturalInfo,
+    );
+
+    if (cuisineInfo != null && mounted) {
+      // Remove asterisks from the cuisine info
+      final cleanedCuisineInfo = _removeAsterisks(cuisineInfo);
+      setState(() {
+        _cuisineInfo = cleanedCuisineInfo;
+        _isGenerating = false;
+      });
+    } else if (mounted) {
+      setState(() {
+        _isGenerating = false;
+      });
+    }
+  }
+
+  // Helper method to remove asterisks from text
+  String _removeAsterisks(String text) {
+    // Remove standalone asterisks used for bold formatting
+    return text.replaceAll('**', '');
   }
 
   @override
   Widget build(BuildContext context) {
     final locationService = context.watch<LocationService>();
-    final apiService = context.watch<ApiService>();
+    final llmService = context.watch<LlmService>();
     final ttsService = context.watch<TtsService>();
 
     return Scaffold(
@@ -52,25 +82,25 @@ class _CuisineScreenState extends State<CuisineScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadCuisineData,
+            onPressed: _isGenerating ? null : _loadCuisineData,
           ),
         ],
       ),
-      body: _buildBody(locationService, apiService, ttsService),
+      body: _buildContent(locationService, llmService, ttsService),
     );
   }
 
-  Widget _buildBody(LocationService location, ApiService api, TtsService tts) {
-    if (location.isLoading || api.isLoading) {
-      return _buildLoading();
+  Widget _buildContent(LocationService location, LlmService llm, TtsService tts) {
+    if (_isGenerating || llm.isLoading) {
+      return _buildLoadingState(location);
     }
 
-    if (location.error.isNotEmpty) {
-      return _buildError(location.error);
+    if (llm.error.isNotEmpty) {
+      return _buildErrorState(llm, location);
     }
 
-    if (api.error.isNotEmpty) {
-      return _buildError(api.error);
+    if (_cuisineInfo == null) {
+      return _buildEmptyState(location);
     }
 
     return SingleChildScrollView(
@@ -86,45 +116,104 @@ class _CuisineScreenState extends State<CuisineScreen> {
     );
   }
 
-  Widget _buildLoading() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Discovering local cuisine...'),
-        ],
-      ),
+  Widget _buildLoadingState(LocationService location) {
+    return Column(
+      children: [
+        _buildLocationCard(location),
+        const Expanded(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Discovering local cuisine...'),
+                SizedBox(height: 8),
+                Text(
+                  'Generating authentic food information for your location',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildError(String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(
-              'Unable to load cuisine data',
-              style: Theme.of(context).textTheme.headlineSmall,
+  Widget _buildErrorState(LlmService llm, LocationService location) {
+    return Column(
+      children: [
+        _buildLocationCard(location),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to load cuisine data',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    llm.error,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadCuisineData,
+                    child: const Text('Try Again'),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              error,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadCuisineData,
-              child: const Text('Try Again'),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(LocationService location) {
+    return Column(
+      children: [
+        _buildLocationCard(location),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.restaurant, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No cuisine data available',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Generate local cuisine information for your current location',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadCuisineData,
+                    child: const Text('Generate Cuisine Info'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -165,8 +254,6 @@ class _CuisineScreenState extends State<CuisineScreen> {
   }
 
   Widget _buildCuisineCard(TtsService tts) {
-    final cuisineInfo = _currentCityInfo?.cuisine ?? 'Cuisine information not available for this location.';
-
     return Card(
       elevation: 2,
       child: Padding(
@@ -174,103 +261,82 @@ class _CuisineScreenState extends State<CuisineScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Local Delicacies',
+                  'Local Delicacies & Food Culture',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                IconButton(
-                  icon: Icon(
-                    tts.ttsState == TtsState.playing
-                        ? Icons.volume_up
-                        : Icons.volume_down,
-                  ),
-                  onPressed: () => tts.speak(cuisineInfo),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        tts.isSpeaking ? Icons.stop : Icons.volume_up,
+                        color: tts.isSpeaking ? Colors.red : Colors.blue,
+                      ),
+                      onPressed: () {
+                        if (tts.isSpeaking) {
+                          tts.stop();
+                        } else {
+                          tts.speak(_cuisineInfo!);
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            _buildCuisineContent(cuisineInfo),
+            Text(
+              _cuisineInfo!,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            _buildFoodTips(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCuisineContent(String cuisineInfo) {
-    if (cuisineInfo == 'Cuisine information not available for this location.') {
-      return Column(
+  Widget _buildFoodTips() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.fastfood, size: 48, color: Colors.grey),
-          const SizedBox(height: 16),
           Text(
-            cuisineInfo,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
+            '🍽️ Food Experience Tips:',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.orange[800],
+            ),
           ),
+          const SizedBox(height: 8),
+          _buildTipItem('• Try local street food for authentic flavors'),
+          _buildTipItem('• Visit traditional restaurants for classic dishes'),
+          _buildTipItem('• Ask locals for their favorite food spots'),
+          _buildTipItem('• Be adventurous with regional specialties'),
         ],
-      );
-    }
-
-    // If we have actual cuisine data, format it nicely
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          cuisineInfo,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 16),
-        _buildPopularDishes(cuisineInfo),
-      ],
+      ),
     );
   }
 
-  Widget _buildPopularDishes(String cuisineInfo) {
-    // Extract potential dish names from the cuisine info
-    final dishes = _extractDishesFromText(cuisineInfo);
-
-    if (dishes.isEmpty) {
-      return const SizedBox();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Popular Dishes:',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: dishes.map((dish) {
-            return Chip(
-              label: Text(dish),
-              backgroundColor: Colors.orange[50],
-            );
-          }).toList(),
-        ),
-      ],
+  Widget _buildTipItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodyMedium,
+      ),
     );
-  }
-
-  List<String> _extractDishesFromText(String text) {
-    // Simple extraction of potential dish names (you can enhance this)
-    final dishKeywords = ['pakhal', 'bhat', 'dalma', 'chhena', 'poda', 'vada', 'pav', 'bhaji', 'biryani', 'dosa', 'idli'];
-    final foundDishes = <String>[];
-
-    for (final keyword in dishKeywords) {
-      if (text.toLowerCase().contains(keyword)) {
-        foundDishes.add(keyword);
-      }
-    }
-
-    return foundDishes.take(5).toList();
   }
 }

@@ -36,7 +36,7 @@ class _StoryScreenState extends State<StoryScreen> {
             const SizedBox(height: 20),
             _buildGenerateButton(locationService, llmService, apiService),
             const SizedBox(height: 20),
-            _buildStoryContent(llmService, ttsService),
+            _buildStoryContent(llmService, ttsService, locationService),
           ],
         ),
       ),
@@ -120,7 +120,7 @@ class _StoryScreenState extends State<StoryScreen> {
     );
   }
 
-  Widget _buildStoryContent(LlmService llm, TtsService tts) {
+  Widget _buildStoryContent(LlmService llm, TtsService tts, LocationService location) {
     if (llm.error.isNotEmpty) {
       return Card(
         color: Colors.red[50],
@@ -130,7 +130,10 @@ class _StoryScreenState extends State<StoryScreen> {
             children: [
               const Icon(Icons.error, color: Colors.red),
               const SizedBox(height: 8),
-              Text('Error: ${llm.error}'),
+              Text(
+                'Error: ${llm.error}',
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -162,26 +165,31 @@ class _StoryScreenState extends State<StoryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'The Legend of ${context.read<LocationService>().currentCity}',
+                  'The Legend of ${location.currentCity}',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                IconButton(
-                  icon: Icon(
-                    tts.ttsState == TtsState.playing
-                        ? Icons.stop
-                        : Icons.play_arrow,
-                  ),
-                  onPressed: () {
-                    if (tts.ttsState == TtsState.playing) {
-                      tts.stop();
-                    } else {
-                      tts.speak(_generatedStory!);
-                    }
-                  },
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        tts.isSpeaking ? Icons.stop : Icons.play_arrow,
+                        color: tts.isSpeaking ? Colors.red : Colors.green,
+                      ),
+                      onPressed: () {
+                        if (tts.isSpeaking) {
+                          tts.stop();
+                        } else {
+                          tts.speak(_generatedStory!);
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),

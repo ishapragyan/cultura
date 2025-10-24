@@ -9,18 +9,23 @@ class LlmService with ChangeNotifier {
   bool _isLoading = false;
   String _error = '';
 
-  // Cache storage
+  // Complete cache storage for all features
   final Map<String, String> _storyCache = {};
   final Map<String, String> _summaryCache = {};
   final Map<String, List<Phrase>> _phrasesCache = {};
+  final Map<String, String> _cuisineCache = {};
+  final Map<String, String> _festivalsCache = {};
+  final Map<String, DateTime> _cacheTimestamps = {};
+  final Duration _cacheDuration = const Duration(hours: 24);
 
   bool get isLoading => _isLoading;
   String get error => _error;
 
+  // STORY GENERATION with Cache
   Future<String?> generateStory(String city, String culturalInfo) async {
     final cacheKey = 'story_${city}_${culturalInfo.hashCode}';
 
-    if (_storyCache.containsKey(cacheKey)) {
+    if (_isValidCache(cacheKey) && _storyCache.containsKey(cacheKey)) {
       return _storyCache[cacheKey];
     }
 
@@ -61,7 +66,10 @@ Generate a short 150-word folk-style story or legend written in an engaging narr
         final story = data['choices'][0]['message']['content'];
         final cleanedStory = _cleanResponse(story);
 
+        // Cache the result
         _storyCache[cacheKey] = cleanedStory;
+        _cacheTimestamps[cacheKey] = DateTime.now();
+
         return cleanedStory;
       } else {
         final errorData = json.decode(response.body);
@@ -77,14 +85,12 @@ Generate a short 150-word folk-style story or legend written in an engaging narr
     }
   }
 
-  Future<String?> generateJourneySummary(List<Map<String, dynamic>> visits) async {
-    final visitsHash = visits.fold<int>(0, (hash, visit) {
-      return hash ^ visit['city'].hashCode ^ visit['keywords'].join().hashCode;
-    });
-    final cacheKey = 'summary_$visitsHash';
+  // CUISINE GENERATION with Cache
+  Future<String?> generateCuisineInfo(String city, String state, String? culturalInfo) async {
+    final cacheKey = 'cuisine_${city}_$state';
 
-    if (_summaryCache.containsKey(cacheKey)) {
-      return _summaryCache[cacheKey];
+    if (_isValidCache(cacheKey) && _cuisineCache.containsKey(cacheKey)) {
+      return _cuisineCache[cacheKey];
     }
 
     _isLoading = true;
@@ -93,11 +99,19 @@ Generate a short 150-word folk-style story or legend written in an engaging narr
 
     try {
       final prompt = '''
-Summarize this cultural journey across Indian cities and their heritage:
+For the city $city in $state, India, generate detailed information about the local cuisine and food culture.
 
-${visits.map((v) => "Visited ${v['city']} - ${v['keywords'].join(', ')}").join('\n')}
+${culturalInfo != null ? "Context about the city: $culturalInfo" : ""}
 
-Create a beautiful, reflective summary of this cultural exploration in 100 words or less.
+Please provide comprehensive information about:
+1. Signature dishes and specialties
+2. Unique ingredients and cooking techniques
+3. Street food culture
+4. Traditional meals and eating habits
+5. Cultural significance of food
+6. Must-try local delicacies
+
+Make it informative, engaging, and around 200-250 words. Focus on authentic local cuisine.
 ''';
 
       final response = await http.post(
@@ -116,37 +130,114 @@ Create a beautiful, reflective summary of this cultural exploration in 100 words
               'content': prompt,
             }
           ],
-          'max_tokens': 300,
-          'temperature': 0.7,
+          'max_tokens': 600,
+          'temperature': 0.6,
         }),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final summary = data['choices'][0]['message']['content'];
-        final cleanedSummary = _cleanResponse(summary);
+        final cuisineInfo = data['choices'][0]['message']['content'];
+        final cleanedInfo = _cleanResponse(cuisineInfo);
 
-        _summaryCache[cacheKey] = cleanedSummary;
-        return cleanedSummary;
+        // Cache the result
+        _cuisineCache[cacheKey] = cleanedInfo;
+        _cacheTimestamps[cacheKey] = DateTime.now();
+
+        return cleanedInfo;
       } else {
         final errorData = json.decode(response.body);
-        _error = 'Failed to generate summary: ${errorData['error']['message'] ?? response.statusCode}';
-        return null;
+        _error = 'Failed to generate cuisine info: ${errorData['error']['message'] ?? response.statusCode}';
+        return _getFallbackCuisine(city, state);
       }
     } catch (e) {
-      _error = 'Error generating summary: $e';
-      return null;
+      _error = 'Error generating cuisine info: $e';
+      return _getFallbackCuisine(city, state);
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // NEW METHOD: Generate local phrases based on city and state
+  // FESTIVALS GENERATION with Cache
+  Future<String?> generateFestivalsInfo(String city, String state, String? culturalInfo) async {
+    final cacheKey = 'festivals_${city}_$state';
+
+    if (_isValidCache(cacheKey) && _festivalsCache.containsKey(cacheKey)) {
+      return _festivalsCache[cacheKey];
+    }
+
+    _isLoading = true;
+    _error = '';
+    notifyListeners();
+
+    try {
+      final prompt = '''
+For the city $city in $state, India, generate detailed information about local festivals, celebrations, and cultural events.
+
+${culturalInfo != null ? "Context about the city: $culturalInfo" : ""}
+
+Please provide comprehensive information about:
+1. Major religious and cultural festivals
+2. Unique local celebrations and traditions
+3. Festival dates and significance
+4. Traditional rituals and customs
+5. Community participation and celebrations
+6. Special foods and activities during festivals
+
+Make it informative, engaging, and around 200-250 words. Focus on authentic local traditions.
+''';
+
+      final response = await http.post(
+        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_openRouterApiKey',
+          'HTTP-Referer': 'https://cultura-app.com',
+          'X-Title': 'Cultura Cultural Explorer',
+        },
+        body: json.encode({
+          'model': _model,
+          'messages': [
+            {
+              'role': 'user',
+              'content': prompt,
+            }
+          ],
+          'max_tokens': 600,
+          'temperature': 0.6,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final festivalsInfo = data['choices'][0]['message']['content'];
+        final cleanedInfo = _cleanResponse(festivalsInfo);
+
+        // Cache the result
+        _festivalsCache[cacheKey] = cleanedInfo;
+        _cacheTimestamps[cacheKey] = DateTime.now();
+
+        return cleanedInfo;
+      } else {
+        final errorData = json.decode(response.body);
+        _error = 'Failed to generate festivals info: ${errorData['error']['message'] ?? response.statusCode}';
+        return _getFallbackFestivals(city, state);
+      }
+    } catch (e) {
+      _error = 'Error generating festivals info: $e';
+      return _getFallbackFestivals(city, state);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // PHRASEBOOK GENERATION with Cache
   Future<List<Phrase>?> generateLocalPhrases(String city, String state, String? culturalInfo) async {
     final cacheKey = 'phrases_${city}_$state';
 
-    if (_phrasesCache.containsKey(cacheKey)) {
+    if (_isValidCache(cacheKey) && _phrasesCache.containsKey(cacheKey)) {
       return _phrasesCache[cacheKey];
     }
 
@@ -229,7 +320,10 @@ Make sure the phrases are authentic to the local language and culture of $city, 
               );
             }).toList();
 
+            // Cache the result
             _phrasesCache[cacheKey] = phrases;
+            _cacheTimestamps[cacheKey] = DateTime.now();
+
             return phrases;
           }
         }
@@ -248,7 +342,107 @@ Make sure the phrases are authentic to the local language and culture of $city, 
     }
   }
 
-  // Fallback phrases in case API fails
+  // JOURNEY SUMMARY with Cache
+  Future<String?> generateJourneySummary(List<Map<String, dynamic>> visits) async {
+    final visitsHash = visits.fold<int>(0, (hash, visit) {
+      return hash ^ visit['city'].hashCode ^ visit['keywords'].join().hashCode;
+    });
+    final cacheKey = 'summary_$visitsHash';
+
+    if (_isValidCache(cacheKey) && _summaryCache.containsKey(cacheKey)) {
+      return _summaryCache[cacheKey];
+    }
+
+    _isLoading = true;
+    _error = '';
+    notifyListeners();
+
+    try {
+      final prompt = '''
+Summarize this cultural journey across Indian cities and their heritage:
+
+${visits.map((v) => "Visited ${v['city']} - ${v['keywords'].join(', ')}").join('\n')}
+
+Create a beautiful, reflective summary of this cultural exploration in 100 words or less.
+''';
+
+      final response = await http.post(
+        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_openRouterApiKey',
+          'HTTP-Referer': 'https://cultura-app.com',
+          'X-Title': 'Cultura Cultural Explorer',
+        },
+        body: json.encode({
+          'model': _model,
+          'messages': [
+            {
+              'role': 'user',
+              'content': prompt,
+            }
+          ],
+          'max_tokens': 300,
+          'temperature': 0.7,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final summary = data['choices'][0]['message']['content'];
+        final cleanedSummary = _cleanResponse(summary);
+
+        // Cache the result
+        _summaryCache[cacheKey] = cleanedSummary;
+        _cacheTimestamps[cacheKey] = DateTime.now();
+
+        return cleanedSummary;
+      } else {
+        final errorData = json.decode(response.body);
+        _error = 'Failed to generate summary: ${errorData['error']['message'] ?? response.statusCode}';
+        return null;
+      }
+    } catch (e) {
+      _error = 'Error generating summary: $e';
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Cache validation
+  bool _isValidCache(String cacheKey) {
+    if (!_cacheTimestamps.containsKey(cacheKey)) {
+      return false;
+    }
+
+    final timestamp = _cacheTimestamps[cacheKey]!;
+    final now = DateTime.now();
+    return now.difference(timestamp) < _cacheDuration;
+  }
+
+  // Fallback methods
+  String _getFallbackCuisine(String city, String state) {
+    return '''
+Discover the authentic flavors of $city, $state! This region offers a unique culinary heritage with traditional dishes passed down through generations. 
+
+Local cuisine typically features a blend of aromatic spices, fresh local ingredients, and traditional cooking methods. From street food delights to festive specialties, the food culture here reflects the rich cultural tapestry of the region.
+
+Must-try dishes often include traditional breads, flavorful curries, sweet delicacies, and unique local specialties that you won't find anywhere else in India. The cuisine tells the story of the land and its people through every bite.
+''';
+  }
+
+  String _getFallbackFestivals(String city, String state) {
+    return '''
+Experience the vibrant festival culture of $city, $state! This region celebrates a rich calendar of cultural and religious festivals throughout the year.
+
+Local festivals typically include major Hindu celebrations, regional harvest festivals, and unique local traditions that have been preserved for centuries. Communities come together with colorful processions, traditional music, dance performances, and elaborate decorations.
+
+The festivals reflect the deep spiritual and cultural roots of the region, offering visitors a chance to witness authentic traditions and participate in joyful celebrations that showcase the local way of life.
+''';
+  }
+
   List<Phrase> _getFallbackPhrases(String city, String state) {
     return [
       Phrase(
@@ -289,27 +483,57 @@ Make sure the phrases are authentic to the local language and culture of $city, 
     ];
   }
 
-  // Clear cache methods
+  // Cache management methods
   void clearStoryCache() {
     _storyCache.clear();
+    _cacheTimestamps.removeWhere((key, value) => key.startsWith('story_'));
     notifyListeners();
   }
 
-  void clearSummaryCache() {
-    _summaryCache.clear();
+  void clearCuisineCache() {
+    _cuisineCache.clear();
+    _cacheTimestamps.removeWhere((key, value) => key.startsWith('cuisine_'));
+    notifyListeners();
+  }
+
+  void clearFestivalsCache() {
+    _festivalsCache.clear();
+    _cacheTimestamps.removeWhere((key, value) => key.startsWith('festivals_'));
     notifyListeners();
   }
 
   void clearPhrasesCache() {
     _phrasesCache.clear();
+    _cacheTimestamps.removeWhere((key, value) => key.startsWith('phrases_'));
+    notifyListeners();
+  }
+
+  void clearSummaryCache() {
+    _summaryCache.clear();
+    _cacheTimestamps.removeWhere((key, value) => key.startsWith('summary_'));
     notifyListeners();
   }
 
   void clearAllCache() {
     _storyCache.clear();
-    _summaryCache.clear();
+    _cuisineCache.clear();
+    _festivalsCache.clear();
     _phrasesCache.clear();
+    _summaryCache.clear();
+    _cacheTimestamps.clear();
     notifyListeners();
+  }
+
+  // Cache statistics for debugging
+  Map<String, dynamic> getCacheStats() {
+    return {
+      'storyCache': _storyCache.length,
+      'cuisineCache': _cuisineCache.length,
+      'festivalsCache': _festivalsCache.length,
+      'phrasesCache': _phrasesCache.length,
+      'summaryCache': _summaryCache.length,
+      'totalCache': _cacheTimestamps.length,
+    };
   }
 
   String _cleanResponse(String response) {
@@ -317,7 +541,6 @@ Make sure the phrases are authentic to the local language and culture of $city, 
   }
 }
 
-// Phrase model class
 class Phrase {
   final String english;
   final String local;

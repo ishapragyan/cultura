@@ -365,27 +365,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Widget _buildCulturalInfoCard(ApiService api, TtsService tts) {
     if (_currentCityInfo == null) {
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 500),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(20),
-        ),
+      return Card(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 48,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(height: 12),
+              const Icon(Icons.info_outline, size: 48, color: Colors.grey),
+              const SizedBox(height: 8),
               Text(
                 'Cultural information not available',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
             ],
           ),
@@ -393,72 +382,45 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       );
     }
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 500),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return Card(
+      elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    'About ${_currentCityInfo!.cityName}',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
+                Text(
+                  'About ${_currentCityInfo!.cityName}',
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: tts.ttsState == TtsState.playing
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.surfaceVariant,
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      tts.ttsState == TtsState.playing
-                          ? Icons.volume_up_rounded
-                          : Icons.volume_down_rounded,
-                      color: tts.ttsState == TtsState.playing
-                          ? Theme.of(context).colorScheme.onPrimary
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        tts.isSpeaking ? Icons.stop : Icons.volume_up,
+                        color: tts.isSpeaking ? Colors.red : Colors.blue,
+                      ),
+                      onPressed: () {
+                        if (tts.isSpeaking) {
+                          tts.stop();
+                        } else {
+                          tts.speak(_currentCityInfo!.culturalInfo ?? 'No information available');
+                        }
+                      },
                     ),
-                    onPressed: () {
-                      tts.speak(_currentCityInfo!.culturalInfo ?? 'No information');
-                    },
-                  ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Container(
-              height: 1,
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Text(
               _currentCityInfo!.culturalInfo ?? 'No cultural information available.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                height: 1.5,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
         ),

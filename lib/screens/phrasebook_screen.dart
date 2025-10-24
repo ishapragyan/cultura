@@ -15,7 +15,6 @@ class PhrasebookScreen extends StatefulWidget {
 class _PhrasebookScreenState extends State<PhrasebookScreen> {
   List<Phrase> _phrases = [];
   bool _isGenerating = false;
-  String _selectedLanguage = "Current Location";
 
   @override
   void initState() {
@@ -120,6 +119,7 @@ class _PhrasebookScreenState extends State<PhrasebookScreen> {
                 Text(
                   'Creating authentic phrases for your location',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
@@ -145,6 +145,7 @@ class _PhrasebookScreenState extends State<PhrasebookScreen> {
                   Text(
                     'Failed to generate phrases',
                     style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -172,26 +173,30 @@ class _PhrasebookScreenState extends State<PhrasebookScreen> {
         _buildLocationHeader(location),
         Expanded(
           child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.translate, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text(
-                  'No phrases generated',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Generate local phrases for your current location',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _generateLocalPhrases,
-                  child: const Text('Generate Phrases'),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.translate, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No phrases generated',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Generate local phrases for your current location',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _generateLocalPhrases,
+                    child: const Text('Generate Phrases'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -283,8 +288,17 @@ class _PhrasebookScreenState extends State<PhrasebookScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.volume_up),
-                  onPressed: () => tts.speak(phrase.local),
+                  icon: Icon(
+                    tts.isSpeaking ? Icons.stop : Icons.volume_up,
+                    color: tts.isSpeaking ? Colors.red : Colors.blue,
+                  ),
+                  onPressed: () {
+                    if (tts.isSpeaking) {
+                      tts.stop();
+                    } else {
+                      tts.speak(phrase.local);
+                    }
+                  },
                 ),
               ],
             ),

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/location_service.dart';
 import '../services/api_service.dart';
+import '../services/llm_service.dart';
 import '../services/tts_service.dart';
-import '../models/city_info.dart';
 
 class FestivalsScreen extends StatefulWidget {
   const FestivalsScreen({super.key});
@@ -13,36 +13,57 @@ class FestivalsScreen extends StatefulWidget {
 }
 
 class _FestivalsScreenState extends State<FestivalsScreen> {
-  CityInfo? _currentCityInfo;
+  String? _festivalsInfo;
+  bool _isGenerating = false;
 
   @override
   void initState() {
     super.initState();
-    _loadFestivalData();
+    _loadFestivalsData();
   }
 
-  void _loadFestivalData() async {
+  void _loadFestivalsData() async {
     final locationService = context.read<LocationService>();
     final apiService = context.read<ApiService>();
+    final llmService = context.read<LlmService>();
 
-    if (locationService.currentCity != 'Unknown') {
-      final cityInfo = await apiService.getCulturalInfo(
-        locationService.currentCity,
-        locationService.currentState,
-      );
+    if (locationService.currentCity == 'Unknown') {
+      return;
+    }
 
-      if (mounted) {
-        setState(() {
-          _currentCityInfo = cityInfo;
-        });
-      }
+    setState(() {
+      _isGenerating = true;
+    });
+
+    // First get cultural info for context
+    final culturalInfo = await apiService.getCulturalInfo(
+      locationService.currentCity,
+      locationService.currentState,
+    );
+
+    // Then generate festivals info using AI
+    final festivalsInfo = await llmService.generateFestivalsInfo(
+      locationService.currentCity,
+      locationService.currentState,
+      culturalInfo?.culturalInfo,
+    );
+
+    if (festivalsInfo != null && mounted) {
+      setState(() {
+        _festivalsInfo = festivalsInfo;
+        _isGenerating = false;
+      });
+    } else if (mounted) {
+      setState(() {
+        _isGenerating = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final locationService = context.watch<LocationService>();
-    final apiService = context.watch<ApiService>();
+    final llmService = context.watch<LlmService>();
     final ttsService = context.watch<TtsService>();
 
     return Scaffold(
@@ -52,25 +73,25 @@ class _FestivalsScreenState extends State<FestivalsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadFestivalData,
+            onPressed: _isGenerating ? null : _loadFestivalsData,
           ),
         ],
       ),
-      body: _buildBody(locationService, apiService, ttsService),
+      body: _buildContent(locationService, llmService, ttsService),
     );
   }
 
-  Widget _buildBody(LocationService location, ApiService api, TtsService tts) {
-    if (location.isLoading || api.isLoading) {
-      return _buildLoading();
+  Widget _buildContent(LocationService location, LlmService llm, TtsService tts) {
+    if (_isGenerating || llm.isLoading) {
+      return _buildLoadingState(location);
     }
 
-    if (location.error.isNotEmpty) {
-      return _buildError(location.error);
+    if (llm.error.isNotEmpty) {
+      return _buildErrorState(llm, location);
     }
 
-    if (api.error.isNotEmpty) {
-      return _buildError(api.error);
+    if (_festivalsInfo == null) {
+      return _buildEmptyState(location);
     }
 
     return SingleChildScrollView(
@@ -86,45 +107,104 @@ class _FestivalsScreenState extends State<FestivalsScreen> {
     );
   }
 
-  Widget _buildLoading() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Discovering local festivals...'),
-        ],
-      ),
+  Widget _buildLoadingState(LocationService location) {
+    return Column(
+      children: [
+        _buildLocationCard(location),
+        const Expanded(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Discovering local festivals...'),
+                SizedBox(height: 8),
+                Text(
+                  'Generating authentic festival information for your location',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildError(String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(
-              'Unable to load festival data',
-              style: Theme.of(context).textTheme.headlineSmall,
+  Widget _buildErrorState(LlmService llm, LocationService location) {
+    return Column(
+      children: [
+        _buildLocationCard(location),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to load festival data',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    llm.error,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadFestivalsData,
+                    child: const Text('Try Again'),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              error,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadFestivalData,
-              child: const Text('Try Again'),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(LocationService location) {
+    return Column(
+      children: [
+        _buildLocationCard(location),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.celebration, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No festival data available',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Generate local festival information for your current location',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadFestivalsData,
+                    child: const Text('Generate Festival Info'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -165,8 +245,6 @@ class _FestivalsScreenState extends State<FestivalsScreen> {
   }
 
   Widget _buildFestivalsCard(TtsService tts) {
-    final festivalsInfo = _currentCityInfo?.festivals ?? 'Festival information not available for this location.';
-
     return Card(
       elevation: 2,
       child: Padding(
@@ -174,125 +252,83 @@ class _FestivalsScreenState extends State<FestivalsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Cultural Celebrations',
+                  'Cultural Celebrations & Festivals',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                IconButton(
-                  icon: Icon(
-                    tts.ttsState == TtsState.playing
-                        ? Icons.volume_up
-                        : Icons.volume_down,
-                  ),
-                  onPressed: () => tts.speak(festivalsInfo),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        tts.isSpeaking ? Icons.stop : Icons.volume_up,
+                        color: tts.isSpeaking ? Colors.red : Colors.blue,
+                      ),
+                      onPressed: () {
+                        if (tts.isSpeaking) {
+                          tts.stop();
+                        } else {
+                          tts.speak(_festivalsInfo!);
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            _buildFestivalsContent(festivalsInfo),
+            Text(
+              _festivalsInfo!,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            _buildFestivalTips(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFestivalsContent(String festivalsInfo) {
-    if (festivalsInfo == 'Festival information not available for this location.') {
-      return Column(
-        children: [
-          const Icon(Icons.celebration, size: 48, color: Colors.grey),
-          const SizedBox(height: 16),
-          Text(
-            festivalsInfo,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
-      );
-    }
-
-    // If we have actual festival data, format it nicely
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          festivalsInfo,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 16),
-        _buildFestivalList(festivalsInfo),
-      ],
-    );
-  }
-
-  Widget _buildFestivalList(String festivalsInfo) {
-    // Extract festival names from the text
-    final festivals = _extractFestivalsFromText(festivalsInfo);
-
-    if (festivals.isEmpty) {
-      return const SizedBox();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Major Festivals:',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...festivals.map((festival) => _buildFestivalItem(festival)),
-      ],
-    );
-  }
-
-  Widget _buildFestivalItem(String festival) {
+  Widget _buildFestivalTips() {
     return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
+      width: double.infinity, // Ensure it takes full width
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.green[50],
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.festival, color: Colors.green[700], size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              festival,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+          Text(
+            '🎉 Festival Experience Tips:',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.green[800],
             ),
           ),
+          const SizedBox(height: 8),
+          _buildTipItem('• Respect local customs and traditions'),
+          _buildTipItem('• Dress appropriately for religious sites'),
+          _buildTipItem('• Ask before taking photos during ceremonies'),
+          _buildTipItem('• Try festival-specific foods and sweets'),
+          _buildTipItem('• Participate in community celebrations'),
         ],
       ),
     );
   }
 
-  List<String> _extractFestivalsFromText(String text) {
-    // Simple extraction of potential festival names
-    final festivalKeywords = [
-      'ratha yatra', 'durga puja', 'diwali', 'holi', 'ganesh chaturthi',
-      'pongal', 'onam', 'bihu', 'lohri', 'makar sankranti', 'navratri',
-      'eid', 'christmas', 'guru purnima', 'rakhi', 'janmashtami'
-    ];
-    final foundFestivals = <String>[];
-
-    for (final keyword in festivalKeywords) {
-      if (text.toLowerCase().contains(keyword)) {
-        foundFestivals.add(keyword.split(' ').map((word) =>
-        word[0].toUpperCase() + word.substring(1)).join(' '));
-      }
-    }
-
-    return foundFestivals.take(5).toList();
+  Widget _buildTipItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodyMedium,
+      ),
+    );
   }
 }
