@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 class LlmService with ChangeNotifier {
   // OpenRouter configuration for Mistral 7B (free tier)
-  final String _openRouterApiKey = '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';
+  final String _openRouterApiKey = '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';
   final String _model = 'mistralai/mistral-7b-instruct:free';
   bool _isLoading = false;
   String _error = '';
